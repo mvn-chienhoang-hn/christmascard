@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<head>
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<title>Hello, world!</title>
+	<!-- include three.js library -->
+	<script src='js/three.js'></script>
+	<script src='js/OBJLoader.js'></script>
+	<script src='js/MTLLoader.js'></script>
+	<!-- include jsartookit -->
+	<script src="jsartoolkit5/artoolkit.min.js"></script>
+	<script src="jsartoolkit5/artoolkit.api.js"></script>
+	<!-- include threex.artoolkit -->
+	<script src="threex/threex-artoolkitsource.js"></script>
+	<script src="threex/threex-artoolkitcontext.js"></script>
+	<script src="threex/threex-arbasecontrols.js"></script>
+	<script src="threex/threex-armarkercontrols.js"></script>
+</head>
+
+<body style='margin : 0px; overflow: hidden; font-family: Monospace;'>
+
+<!-- 
+  Example created by Lee Stemkoski: https://github.com/stemkoski
+  Based on the AR.js library and examples created by Jerome Etienne: https://github.com/jeromeetienne/AR.js/
+-->
+
+<script>
+
+var scene, camera, renderer, clock, deltaTime, totalTime, hl, mixer;
+
+var arToolkitSource, arToolkitContext;
+
+var markerRoot1;
+
+var mesh1, mesh0, meshStar, meshTree, meshTreeNoel;
+
+setInterval(() => {
+	if (meshTree) {
+		hl = !hl;
+	}
+  }, 500);
+
+initialize();
+animate();
+
+function initialize()
+{
+	scene = new THREE.Scene();
+
+	let ambientLight = new THREE.AmbientLight( 0xcccccc, 1.0 );
+	scene.add( ambientLight );
+				
+	camera = new THREE.Camera();
+	scene.add(camera);
+
+	renderer = new THREE.WebGLRenderer({
+		antialias : true,
+		alpha: true
+	});
+	renderer.setClearColor(new THREE.Color('lightgrey'), 0)
+	renderer.setSize( 640, 480 );
+	renderer.domElement.style.position = 'absolute'
+	renderer.domElement.style.top = '0px'
+	renderer.domElement.style.left = '0px'
+	document.body.appendChild( renderer.domElement );
+
+	clock = new THREE.Clock();
+	deltaTime = 0;
+	totalTime = 0;
+	
+	////////////////////////////////////////////////////////////
+	// setup arToolkitSource
+	////////////////////////////////////////////////////////////
+
+	arToolkitSource = new THREEx.ArToolkitSource({
+		sourceType : 'webcam',
+	});
+
+	function onResize()
+	{
+		arToolkitSource.onResize()	
+		arToolkitSource.copySizeTo(renderer.domElement)	
+		if ( arToolkitContext.arController !== null )
+		{
+			arToolkitSource.copySizeTo(arToolkitContext.arController.canvas)	
+		}	
+	}
+
+	arToolkitSource.init(function onReady(){
+		onResize()
+	});
+	
+	// handle resize event
+	window.addEventListener('resize', function(){
+		onResize()
+	});
+	
+	////////////////////////////////////////////////////////////
+	// setup arToolkitContext
+	////////////////////////////////////////////////////////////	
+
+	// create atToolkitContext
+	arToolkitContext = new THREEx.ArToolkitContext({
+		cameraParametersUrl: 'data/camera_para.dat',
+		detectionMode: 'mono'
+	});
+	
+	// copy projection matrix to camera when initialization complete
+	arToolkitContext.init( function onCompleted(){
+		camera.projectionMatrix.copy( arToolkitContext.getProjectionMatrix() );
+	});
+
+	////////////////////////////////////////////////////////////
+	// setup markerRoots
+	////////////////////////////////////////////////////////////
+
+	// build markerControls
+	markerRoot1 = new THREE.Group();
+	scene.add(markerRoot1);
+	let markerControls1 = new THREEx.ArMarkerControls(arToolkitContext, markerRoot1, {
+		type: 'pattern', patternUrl: "data/hiro.patt",
+	})
+
+	let geometry1 = new THREE.PlaneBufferGeometry(1,1, 4,4);
+	let material1 = new THREE.MeshBasicMaterial( { color: 0x0000ff, opacity: 0.5 } );
+	mesh1 = new THREE.Mesh( geometry1, material1 );
+	mesh1.rotation.x = -Math.PI/2;
+	markerRoot1.add( mesh1 );
+	
+	function onProgress(xhr) { console.log( (xhr.loaded / xhr.total * 100) + '% loaded' ); }
+	function onError(xhr) { console.log( 'An error happened' ); }
+
+	new THREE.MTLLoader()
+	.setPath( 'models/' )
+	.load( 'card-2.mtl', function ( materials ) {
+		materials.preload();
+		new THREE.OBJLoader()
+			.setMaterials( materials )
+			.setPath( 'models/' )
+			.load( 'card-2.obj', function ( group ) {
+				mesh0 = group.children[0];
+				console.log(mesh0)
+				mesh0.material.side = THREE.DoubleSide;
+				mesh0.position.y = 0.25
+				mesh0.scale.set(0.25,0.25,0.25);
+				markerRoot1.add(mesh0);
+			}, onProgress, onError );
+	});
+	new THREE.MTLLoader()
+	.setPath( 'models/' )
+	.load( 'tree.mtl', function ( materials ) {
+		materials.preload();
+		new THREE.OBJLoader()
+			.setMaterials( materials )
+			.setPath( 'models/' )
+			.load( 'tree.obj', function ( group ) {
+				meshTree = group.children[0];
+				console.log(meshTree) 
+				meshTree.material.side = THREE.DoubleSide;
+				meshTree.position.y = 1
+				meshTree.scale.set(0.25,0.25,0.25);
+				markerRoot1.add(meshTree);
+			}, onProgress, onError );
+	});
+
+	new THREE.MTLLoader()
+		.setPath( 'models/' )
+		.load( 'star.mtl', function ( materials ) {
+			materials.preload();
+			new THREE.OBJLoader()
+				.setMaterials( materials )
+				.setPath( 'models/' )
+				.load( 'star.obj', function ( group ) {
+					meshStar = group.children[0];
+					console.log(meshStar)
+					meshStar.position.y = 1
+					meshStar.position.x = 0.5
+					meshStar.material.side = THREE.DoubleSide;
+					meshStar.scale.set(0.02,0.02,0.02);
+					markerRoot1.add(meshStar);
+				}, onProgress, onError );
+	});
+	new THREE.MTLLoader()
+		.setPath( 'models/' )
+		.load( 'tree-3.mtl', function ( materials ) {
+			materials.preload();
+			new THREE.OBJLoader()
+				.setMaterials( materials )
+				.setPath( 'models/' )
+				.load( 'tree-3.obj', function ( group ) {
+					meshTreeNoel = group.children[0];
+					console.log(meshTreeNoel)
+					meshTreeNoel.position.y = 0.25
+					meshTreeNoel.material.side = THREE.DoubleSide;
+					meshTreeNoel.scale.set(0.15,0.15,0.15);
+					markerRoot1.add(meshTreeNoel);
+				}, onProgress, onError );
+	});
+
+}
+
+
+function update()
+{
+	// update artoolkit on every frame
+	if ( arToolkitSource.ready !== false )
+		arToolkitContext.update( arToolkitSource.domElement );
+}
+
+
+function render()
+{
+	
+	if(mesh0 && meshTree){
+	mesh0.rotation.y += 0.01;
+	var angle = Date.now() * 0.004;
+    var x = Math.cos(angle) * 0.5;
+    var z = Math.sin(angle) * 0.5;
+    meshTree.position.set(x, 0.5, z);
+	}
+	if(meshStar) {
+		var amplitude = 1;
+var frequency = 0.01;
+var period = 2 * Math.PI / frequency;
+		if (hl) {
+            meshStar.material = meshStar.material.clone();
+            meshStar.material?.color?.setHex(
+              '0x008000'
+            );
+          } else {
+            meshStar.material?.color?.setHex(`0xffd700`);
+          }
+		  var time = Date.now() * frequency;
+    var angle = amplitude * Math.sin(time);
+    meshStar.rotation.z = angle;
+	}
+	if(meshTreeNoel){
+		meshTreeNoel.rotation.y += 0.01;
+	}
+	
+	renderer.render( scene, camera );
+}
+
+
+function animate()
+{
+	requestAnimationFrame(animate);
+	deltaTime = clock.getDelta();
+	totalTime += deltaTime;
+	update();
+	render();
+}
+
+</script>
+
+</body>
+</html>
